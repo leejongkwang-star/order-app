@@ -1,34 +1,47 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
+import CoffeeImage from './components/CoffeeImage'
 
-// 임의의 커피 메뉴 데이터
+// 커피 메뉴 데이터 (첨부 이미지 기반)
+// 그리드 이미지에서 각 영역을 잘라서 사용
 const menuItems = [
   {
     id: 1,
-    name: '아메리카노(ICE)',
-    price: 4000,
-    description: '에스프레소에 물을 더해 부드럽고 깔끔한 맛의 아이스 커피',
+    name: '에스프레소',
+    price: 3000,
+    description: '진한 에스프레소 샷, 두꺼운 크레마가 특징',
+    imageType: 'espresso',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '0% 0%', // 1행 1열 (왼쪽 상단)
     options: [
-      { id: 'shot', name: '샷 추가', price: 500 },
+      { id: 'shot', name: '샷 추가', price: 1000 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
     ]
   },
   {
     id: 2,
-    name: '아메리카노(HOT)',
+    name: '아메리카노',
     price: 4000,
-    description: '에스프레소에 물을 더해 따뜻하고 진한 맛의 핫 커피',
+    description: '에스프레소에 뜨거운 물을 더한 깔끔한 커피',
+    imageType: 'americano',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '50% 0%', // 1행 2열 (중앙 상단)
     options: [
+      { id: 'ice', name: '아이스', price: 500 },
       { id: 'shot', name: '샷 추가', price: 500 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
     ]
   },
   {
     id: 3,
-    name: '카페라떼',
+    name: '라떼',
     price: 5000,
-    description: '에스프레소와 부드러운 스팀 밀크의 조화',
+    description: '에스프레소와 부드러운 스팀 밀크, 라떼 아트가 특징',
+    imageType: 'latte',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '100% 0%', // 1행 3열 (오른쪽 상단)
     options: [
+      { id: 'ice', name: '아이스', price: 500 },
       { id: 'shot', name: '샷 추가', price: 500 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
     ]
@@ -37,27 +50,38 @@ const menuItems = [
     id: 4,
     name: '카푸치노',
     price: 5000,
-    description: '에스프레소 위에 풍부한 우유 거품을 올린 클래식 커피',
+    description: '에스프레소 위에 풍부한 우유 거품, 코코아 파우더 장식',
+    imageType: 'cappuccino',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '0% 100%', // 2행 1열 (왼쪽 하단)
     options: [
+      { id: 'ice', name: '아이스', price: 500 },
       { id: 'shot', name: '샷 추가', price: 500 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
     ]
   },
   {
     id: 5,
-    name: '카라멜 마키아토',
-    price: 6000,
-    description: '달콤한 카라멜 시럽과 에스프레소, 스팀 밀크의 완벽한 조합',
+    name: '플랫 화이트',
+    price: 5500,
+    description: '에스프레소와 미세한 우유 거품, 진한 커피 맛',
+    imageType: 'flat-white',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '50% 100%', // 2행 2열 (중앙 하단)
     options: [
+      { id: 'ice', name: '아이스', price: 500 },
       { id: 'shot', name: '샷 추가', price: 500 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
     ]
   },
   {
     id: 6,
-    name: '바닐라 라떼',
-    price: 5500,
-    description: '부드러운 바닐라 시럽이 들어간 달콤한 라떼',
+    name: '콜드 브루',
+    price: 6000,
+    description: '차가운 물로 장시간 추출한 부드럽고 깔끔한 커피',
+    imageType: 'cold-brew',
+    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
+    imagePosition: '100% 100%', // 2행 3열 (오른쪽 하단)
     options: [
       { id: 'shot', name: '샷 추가', price: 500 },
       { id: 'syrup', name: '시럽 추가', price: 0 }
@@ -69,6 +93,11 @@ function App() {
   const [activeTab, setActiveTab] = useState('order')
   const [cart, setCart] = useState([])
   const [selectedOptions, setSelectedOptions] = useState({})
+  
+  // 디버깅: cart 상태 변경 시 로그 출력
+  useEffect(() => {
+    console.log('Cart updated:', cart)
+  }, [cart])
 
   // 옵션 선택 핸들러
   const handleOptionChange = (menuId, optionId, checked) => {
@@ -86,9 +115,13 @@ function App() {
 
   // 장바구니에 추가
   const addToCart = (menuItem) => {
+    console.log('addToCart called:', menuItem.name)
+    
     const selectedOpts = menuItem.options.filter(opt => 
       selectedOptions[`${menuItem.id}-${opt.id}`]
     )
+    
+    console.log('Selected options:', selectedOpts)
     
     const cartItem = {
       id: Date.now(),
@@ -108,14 +141,24 @@ function App() {
 
     if (existingItemIndex >= 0) {
       // 기존 항목 수량 증가
-      setCart(prev => prev.map((item, index) => 
-        index === existingItemIndex 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ))
+      console.log('Updating existing item at index:', existingItemIndex)
+      setCart(prev => {
+        const updated = prev.map((item, index) => 
+          index === existingItemIndex 
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+        console.log('Updated cart:', updated)
+        return updated
+      })
     } else {
       // 새 항목 추가
-      setCart(prev => [...prev, cartItem])
+      console.log('Adding new item to cart')
+      setCart(prev => {
+        const updated = [...prev, cartItem]
+        console.log('Updated cart:', updated)
+        return updated
+      })
     }
 
     // 해당 메뉴의 선택 옵션 초기화
@@ -180,7 +223,17 @@ function App() {
             <div className="menu-grid">
               {menuItems.map(menuItem => (
                 <div key={menuItem.id} className="menu-card">
-                  <div className="menu-image"></div>
+                  <div 
+                    className="menu-image"
+                    style={{
+                      backgroundImage: menuItem.image ? `url(${menuItem.image})` : 'none',
+                      backgroundSize: menuItem.image ? '300% 200%' : 'auto', // 3열 2행 그리드
+                      backgroundPosition: menuItem.image ? menuItem.imagePosition : 'center',
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                  >
+                    {!menuItem.image && <CoffeeImage type={menuItem.imageType} />}
+                  </div>
                   <h3 className="menu-name">{menuItem.name}</h3>
                   <div className="menu-price">{menuItem.price.toLocaleString()}원</div>
                   <p className="menu-description">{menuItem.description}</p>
