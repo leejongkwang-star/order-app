@@ -194,6 +194,33 @@ function App() {
     return `(${item.options.map(opt => opt.name).join(', ')})`
   }
 
+  // 장바구니 수량 증가
+  const increaseQuantity = (itemId) => {
+    setCart(prev => prev.map(item => 
+      item.id === itemId 
+        ? { ...item, quantity: item.quantity + 1 }
+        : item
+    ))
+  }
+
+  // 장바구니 수량 감소
+  const decreaseQuantity = (itemId) => {
+    setCart(prev => {
+      const item = prev.find(i => i.id === itemId)
+      if (item && item.quantity > 1) {
+        // 수량이 1보다 크면 감소
+        return prev.map(i => 
+          i.id === itemId 
+            ? { ...i, quantity: i.quantity - 1 }
+            : i
+        )
+      } else {
+        // 수량이 1이면 항목 제거
+        return prev.filter(i => i.id !== itemId)
+      }
+    })
+  }
+
   return (
     <div className="app">
       {/* Header */}
@@ -278,7 +305,7 @@ function App() {
                     <div key={item.id} className="cart-item">
                       <div className="cart-item-info">
                         <div className="cart-item-name">
-                          {item.name} {getOptionsSummary(item)} X {item.quantity}
+                          {item.name} {getOptionsSummary(item)}
                         </div>
                         {item.options.length > 0 && (
                           <div className="cart-item-options">
@@ -286,8 +313,27 @@ function App() {
                           </div>
                         )}
                       </div>
-                      <div className="cart-item-price">
-                        {getItemPrice(item).toLocaleString()}원
+                      <div className="cart-item-controls">
+                        <div className="quantity-controls">
+                          <button 
+                            className="quantity-btn"
+                            onClick={() => decreaseQuantity(item.id)}
+                            aria-label="수량 감소"
+                          >
+                            −
+                          </button>
+                          <span className="quantity-display">{item.quantity}</span>
+                          <button 
+                            className="quantity-btn"
+                            onClick={() => increaseQuantity(item.id)}
+                            aria-label="수량 증가"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="cart-item-price">
+                          {getItemPrice(item).toLocaleString()}원
+                        </div>
                       </div>
                     </div>
                   ))}
