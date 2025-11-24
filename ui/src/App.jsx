@@ -94,10 +94,26 @@ function App() {
   const [cart, setCart] = useState([])
   const [selectedOptions, setSelectedOptions] = useState({})
   
+  // 관리자 화면 상태
+  const [orders, setOrders] = useState([]) // 주문 목록
+  const [inventory, setInventory] = useState({
+    1: { name: '에스프레소', stock: 10 },
+    2: { name: '아메리카노', stock: 10 },
+    3: { name: '라떼', stock: 10 },
+    4: { name: '카푸치노', stock: 10 },
+    5: { name: '플랫 화이트', stock: 10 },
+    6: { name: '콜드 브루', stock: 10 }
+  })
+  
   // 디버깅: cart 상태 변경 시 로그 출력
   useEffect(() => {
     console.log('Cart updated:', cart)
   }, [cart])
+  
+  // 주문이 완료되면 주문 목록에 추가
+  useEffect(() => {
+    // 주문하기 화면에서 주문이 완료되면 orders에 추가하는 로직은 handleOrder에서 처리
+  }, [])
 
   // 옵션 선택 핸들러
   const handleOptionChange = (menuId, optionId, checked) => {
@@ -184,9 +200,83 @@ function App() {
   const handleOrder = () => {
     if (cart.length === 0) return
     
+    const orderId = Date.now()
+    const newOrder = {
+      id: orderId,
+      date: new Date(),
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        options: item.options,
+        price: getItemPrice(item)
+      })),
+      totalPrice: getTotalPrice(),
+      status: 'received' // 주문 접수
+    }
+    
+    setOrders(prev => [newOrder, ...prev])
     alert(`주문이 완료되었습니다!\n총 금액: ${getTotalPrice().toLocaleString()}원`)
     setCart([])
   }
+  
+  // 재고 증가
+  const increaseInventory = (menuId) => {
+    setInventory(prev => ({
+      ...prev,
+      [menuId]: {
+        ...prev[menuId],
+        stock: prev[menuId].stock + 1
+      }
+    }))
+  }
+  
+  // 재고 감소
+  const decreaseInventory = (menuId) => {
+    setInventory(prev => {
+      if (prev[menuId].stock <= 0) return prev
+      return {
+        ...prev,
+        [menuId]: {
+          ...prev[menuId],
+          stock: prev[menuId].stock - 1
+        }
+      }
+    })
+  }
+  
+  // 재고 상태 텍스트
+  const getStockStatus = (stock) => {
+    if (stock === 0) return '품절'
+    if (stock < 5) return '부족'
+    return '여유'
+  }
+  
+  // 재고 상태 색상
+  const getStockStatusColor = (stock) => {
+    if (stock === 0) return '#f44336'
+    if (stock < 5) return '#ff9800'
+    return '#4caf50'
+  }
+  
+  // 주문 상태 변경
+  const changeOrderStatus = (orderId, newStatus) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId 
+        ? { ...order, status: newStatus }
+        : order
+    ))
+  }
+  
+  // 주문 통계 계산
+  const getOrderStats = () => {
+    const total = orders.length
+    const received = orders.filter(o => o.status === 'received').length
+    const inProgress = orders.filter(o => o.status === 'inProgress').length
+    const completed = orders.filter(o => o.status === 'completed').length
+    return { total, received, inProgress, completed }
+  }
+  
+  const orderStats = getOrderStats()
 
   // 옵션 요약 텍스트 생성
   const getOptionsSummary = (item) => {
@@ -368,10 +458,125 @@ function App() {
 
       {activeTab === 'admin' && (
         <main className="main-content">
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <h2>관리자 화면</h2>
-            <p>관리자 화면은 추후 구현 예정입니다.</p>
-          </div>
+          {/* 관리자 대시보드 */}
+          <section className="admin-section">
+            <h2 className="admin-section-title">관리자 대시보드</h2>
+            <div className="dashboard-stats">
+              <div className="stat-item">
+                <span className="stat-label">총 주문</span>
+                <span className="stat-value">{orderStats.total}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">주문 접수</span>
+                <span className="stat-value">{orderStats.received}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">제조 중</span>
+                <span className="stat-value">{orderStats.inProgress}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">제조 완료</span>
+                <span className="stat-value">{orderStats.completed}</span>
+              </div>
+            </div>
+          </section>
+
+          {/* 재고 현황 */}
+          <section className="admin-section">
+            <h2 className="admin-section-title">재고 현황</h2>
+            <div className="inventory-grid">
+              {Object.entries(inventory).map(([menuId, item]) => {
+                const stockStatus = getStockStatus(item.stock)
+                const statusColor = getStockStatusColor(item.stock)
+                return (
+                  <div key={menuId} className="inventory-card">
+                    <div className="inventory-name">{item.name}</div>
+                    <div className="inventory-stock">
+                      <span className="stock-quantity">{item.stock}개</span>
+                      <span 
+                        className="stock-status" 
+                        style={{ color: statusColor }}
+                      >
+                        {stockStatus}
+                      </span>
+                    </div>
+                    <div className="inventory-controls">
+                      <button 
+                        className="inventory-btn"
+                        onClick={() => decreaseInventory(parseInt(menuId))}
+                        disabled={item.stock <= 0}
+                      >
+                        −
+                      </button>
+                      <button 
+                        className="inventory-btn"
+                        onClick={() => increaseInventory(parseInt(menuId))}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* 주문 현황 */}
+          <section className="admin-section">
+            <h2 className="admin-section-title">주문 현황</h2>
+            <div className="orders-list">
+              {orders.length === 0 ? (
+                <div className="empty-orders">주문이 없습니다</div>
+              ) : (
+                orders.map(order => {
+                  const orderDate = new Date(order.date)
+                  const dateStr = `${orderDate.getMonth() + 1}월 ${orderDate.getDate()}일`
+                  const timeStr = `${String(orderDate.getHours()).padStart(2, '0')}:${String(orderDate.getMinutes()).padStart(2, '0')}`
+                  
+                  return (
+                    <div key={order.id} className="order-item">
+                      <div className="order-info">
+                        <div className="order-date">
+                          {dateStr} {timeStr}
+                        </div>
+                        <div className="order-items">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="order-item-detail">
+                              {item.name} {item.options.length > 0 && `(${item.options.map(o => o.name).join(', ')})`} x {item.quantity}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="order-price">
+                          {order.totalPrice.toLocaleString()}원
+                        </div>
+                      </div>
+                      <div className="order-actions">
+                        {order.status === 'received' && (
+                          <button 
+                            className="order-status-btn"
+                            onClick={() => changeOrderStatus(order.id, 'inProgress')}
+                          >
+                            제조 시작
+                          </button>
+                        )}
+                        {order.status === 'inProgress' && (
+                          <button 
+                            className="order-status-btn"
+                            onClick={() => changeOrderStatus(order.id, 'completed')}
+                          >
+                            제조 완료
+                          </button>
+                        )}
+                        {order.status === 'completed' && (
+                          <span className="order-completed">완료</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </section>
         </main>
       )}
     </div>
