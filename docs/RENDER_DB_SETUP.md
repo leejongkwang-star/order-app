@@ -157,3 +157,4 @@ DB_PASSWORD=bxrpurl1WLRe2QFeOPBg2CvIdcWNsj01
 - `server/README_RENDER.md` - 전체 배포 가이드
 - `render.yaml` - Render 설정 파일
 
+

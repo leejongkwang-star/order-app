@@ -79,3 +79,4 @@ DB_PASSWORD=bxrpurl1WLRe2QFeOPBg2CvIdcWNsj01
 - SSL 연결이 자동으로 설정됩니다
 - 무료 플랜은 90일 후 자동 삭제될 수 있으니 주의하세요
 
+

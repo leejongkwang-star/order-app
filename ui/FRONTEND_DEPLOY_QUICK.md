@@ -77,3 +77,4 @@ FRONTEND_URL=https://coffee-order-app.onrender.com
 - [ ] `VITE_API_URL` 환경 변수 설정
 - [ ] 배포 완료 후 기능 테스트
 
+

@@ -194,3 +194,4 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 - `server/RENDER_ENV.md` - 백엔드 환경 변수 설정
 - `render.yaml` - Render 설정 파일
 
+
