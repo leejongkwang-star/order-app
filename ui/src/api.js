@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 // API 호출 헬퍼 함수
 async function apiCall(endpoint, options = {}) {

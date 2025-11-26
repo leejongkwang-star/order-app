@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS menus (
   price INTEGER NOT NULL,
   image VARCHAR(255),
   image_position VARCHAR(20),
+  image_type VARCHAR(50),
   stock INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

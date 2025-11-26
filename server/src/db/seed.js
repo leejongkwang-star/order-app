@@ -10,15 +10,15 @@ async function seedDatabase() {
       return
     }
 
-    // 메뉴 데이터 삽입
+    // 메뉴 데이터 삽입 (각 메뉴에 맞는 image_type 설정, 이미지는 null로 설정하여 SVG 사용)
     const menuInsertQuery = `
-      INSERT INTO menus (name, description, price, image, image_position, stock) VALUES
-      ('에스프레소', '진한 에스프레소 샷, 두꺼운 크레마가 특징', 3000, '/images/coffee-menu-grid.jpg', '0% 0%', 10),
-      ('아메리카노', '에스프레소에 뜨거운 물을 더한 깔끔한 커피', 4000, '/images/coffee-menu-grid.jpg', '50% 0%', 10),
-      ('라떼', '에스프레소와 부드러운 스팀 밀크, 라떼 아트가 특징', 5000, '/images/coffee-menu-grid.jpg', '100% 0%', 10),
-      ('카푸치노', '에스프레소 위에 풍부한 우유 거품, 코코아 파우더 장식', 5000, '/images/coffee-menu-grid.jpg', '0% 100%', 10),
-      ('플랫 화이트', '에스프레소와 미세한 우유 거품, 진한 커피 맛', 5500, '/images/coffee-menu-grid.jpg', '50% 100%', 10),
-      ('콜드 브루', '차가운 물로 장시간 추출한 부드럽고 깔끔한 커피', 6000, '/images/coffee-menu-grid.jpg', '100% 100%', 10)
+      INSERT INTO menus (name, description, price, image, image_position, image_type, stock) VALUES
+      ('에스프레소', '진한 에스프레소 샷, 두꺼운 크레마가 특징', 3000, NULL, NULL, 'americano-hot', 10),
+      ('아메리카노', '에스프레소에 뜨거운 물을 더한 깔끔한 커피', 4000, NULL, NULL, 'americano-hot', 10),
+      ('라떼', '에스프레소와 부드러운 스팀 밀크, 라떼 아트가 특징', 5000, NULL, NULL, 'latte', 10),
+      ('카푸치노', '에스프레소 위에 풍부한 우유 거품, 코코아 파우더 장식', 5000, NULL, NULL, 'cappuccino', 10),
+      ('플랫 화이트', '에스프레소와 미세한 우유 거품, 진한 커피 맛', 5500, NULL, NULL, 'latte', 10),
+      ('콜드 브루', '차가운 물로 장시간 추출한 부드럽고 깔끔한 커피', 6000, NULL, NULL, 'americano-ice', 10)
       RETURNING id, name
     `
     

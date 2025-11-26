@@ -410,7 +410,7 @@ function App() {
                       backgroundRepeat: 'no-repeat'
                     }}
                   >
-                    {!menuItem.image && <CoffeeImage type={menuItem.imageType} />}
+                    {!menuItem.image && <CoffeeImage type={menuItem.image_type || 'default'} />}
                   </div>
                   <h3 className="menu-name">{menuItem.name}</h3>
                   <div className="menu-price">{menuItem.price.toLocaleString()}원</div>

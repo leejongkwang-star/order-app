@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
 
-const { testConnection } = require('./db/init')
+const { testConnection, initDatabase } = require('./db/init')
 const pool = require('./config/db')
 
 const app = express()
@@ -19,11 +19,18 @@ app.use((req, res, next) => {
   next()
 })
 
-// 데이터베이스 연결 테스트
-testConnection().catch(err => {
-  console.error('데이터베이스 연결 실패:', err.message)
-  console.log('데이터베이스 설정을 확인해주세요.')
-})
+// 데이터베이스 초기화 및 연결 테스트
+async function initializeDatabase() {
+  try {
+    await initDatabase()
+    await testConnection()
+  } catch (err) {
+    console.error('데이터베이스 초기화 실패:', err.message)
+    console.log('데이터베이스 설정을 확인해주세요.')
+  }
+}
+
+initializeDatabase()
 
 // 기본 라우트
 app.get('/', (req, res) => {
