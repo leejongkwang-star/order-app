@@ -1,112 +1,93 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import CoffeeImage from './components/CoffeeImage'
-
-// 커피 메뉴 데이터 (첨부 이미지 기반)
-// 그리드 이미지에서 각 영역을 잘라서 사용
-const menuItems = [
-  {
-    id: 1,
-    name: '에스프레소',
-    price: 3000,
-    description: '진한 에스프레소 샷, 두꺼운 크레마가 특징',
-    imageType: 'espresso',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '0% 0%', // 1행 1열 (왼쪽 상단)
-    options: [
-      { id: 'shot', name: '샷 추가', price: 1000 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  },
-  {
-    id: 2,
-    name: '아메리카노',
-    price: 4000,
-    description: '에스프레소에 뜨거운 물을 더한 깔끔한 커피',
-    imageType: 'americano',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '50% 0%', // 1행 2열 (중앙 상단)
-    options: [
-      { id: 'ice', name: '아이스', price: 500 },
-      { id: 'shot', name: '샷 추가', price: 500 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  },
-  {
-    id: 3,
-    name: '라떼',
-    price: 5000,
-    description: '에스프레소와 부드러운 스팀 밀크, 라떼 아트가 특징',
-    imageType: 'latte',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '100% 0%', // 1행 3열 (오른쪽 상단)
-    options: [
-      { id: 'ice', name: '아이스', price: 500 },
-      { id: 'shot', name: '샷 추가', price: 500 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  },
-  {
-    id: 4,
-    name: '카푸치노',
-    price: 5000,
-    description: '에스프레소 위에 풍부한 우유 거품, 코코아 파우더 장식',
-    imageType: 'cappuccino',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '0% 100%', // 2행 1열 (왼쪽 하단)
-    options: [
-      { id: 'ice', name: '아이스', price: 500 },
-      { id: 'shot', name: '샷 추가', price: 500 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  },
-  {
-    id: 5,
-    name: '플랫 화이트',
-    price: 5500,
-    description: '에스프레소와 미세한 우유 거품, 진한 커피 맛',
-    imageType: 'flat-white',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '50% 100%', // 2행 2열 (중앙 하단)
-    options: [
-      { id: 'ice', name: '아이스', price: 500 },
-      { id: 'shot', name: '샷 추가', price: 500 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  },
-  {
-    id: 6,
-    name: '콜드 브루',
-    price: 6000,
-    description: '차가운 물로 장시간 추출한 부드럽고 깔끔한 커피',
-    imageType: 'cold-brew',
-    image: '/images/coffee-menu-grid.jpg', // 그리드 이미지
-    imagePosition: '100% 100%', // 2행 3열 (오른쪽 하단)
-    options: [
-      { id: 'shot', name: '샷 추가', price: 500 },
-      { id: 'syrup', name: '시럽 추가', price: 0 }
-    ]
-  }
-]
+import * as api from './api'
 
 function App() {
   const [activeTab, setActiveTab] = useState('order')
   const [cart, setCart] = useState([])
   const [selectedOptions, setSelectedOptions] = useState({})
+  const [menuItems, setMenuItems] = useState([]) // API에서 가져올 메뉴 목록
+  const [loading, setLoading] = useState(true)
   
   // 관리자 화면 상태
   const [orders, setOrders] = useState([]) // 주문 목록
-  const [inventory, setInventory] = useState({
-    1: { name: '에스프레소', stock: 10 },
-    2: { name: '아메리카노', stock: 10 },
-    3: { name: '라떼', stock: 10 },
-    4: { name: '카푸치노', stock: 10 },
-    5: { name: '플랫 화이트', stock: 10 },
-    6: { name: '콜드 브루', stock: 10 }
-  })
+  const [inventory, setInventory] = useState({}) // 재고 정보
   
   // 토스트 메시지 상태
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
+  
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+  
+  // 관리자 화면 데이터 로드
+  useEffect(() => {
+    if (activeTab === 'admin') {
+      loadAdminData()
+    }
+  }, [activeTab])
+  
+  // 초기 데이터 로드 (메뉴 목록, 재고)
+  const loadInitialData = async () => {
+    try {
+      setLoading(true)
+      const [menus, inv] = await Promise.all([
+        api.getMenus(),
+        api.getInventory()
+      ])
+      
+      // 메뉴 데이터 변환 (옵션 id를 숫자로 변환)
+      const transformedMenus = menus.map(menu => ({
+        ...menu,
+        options: menu.options.map(opt => ({
+          ...opt,
+          id: opt.id.toString() // 옵션 id를 문자열로 변환하여 기존 로직과 호환
+        }))
+      }))
+      setMenuItems(transformedMenus)
+      
+      // 재고 데이터를 객체 형태로 변환
+      const inventoryObj = {}
+      inv.forEach(item => {
+        inventoryObj[item.menu_id] = {
+          name: item.menu_name,
+          stock: item.stock
+        }
+      })
+      setInventory(inventoryObj)
+    } catch (error) {
+      showToast('데이터를 불러오는데 실패했습니다.', 'error')
+      console.error('데이터 로드 오류:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // 관리자 화면 데이터 로드 (주문 목록)
+  const loadAdminData = async () => {
+    try {
+      const data = await api.getOrders()
+      // API 응답 형식에 맞게 변환
+      const transformedOrders = data.orders.map(order => ({
+        id: order.id,
+        date: new Date(order.order_date),
+        items: order.items.map(item => ({
+          name: item.menu_name,
+          quantity: item.quantity,
+          options: Array.isArray(item.options) ? item.options.map(opt => ({ name: opt })) : [],
+          price: 0 // API에서 가격 정보가 없으면 0으로 설정
+        })),
+        totalPrice: order.total_price,
+        status: order.status
+      }))
+      setOrders(transformedOrders)
+    } catch (error) {
+      showToast('주문 목록을 불러오는데 실패했습니다.', 'error')
+      console.error('주문 목록 로드 오류:', error)
+    }
+  }
   
   // 토스트 메시지 표시
   const showToast = (message, type = 'success') => {
@@ -198,77 +179,94 @@ function App() {
   }
 
   // 주문하기
-  const handleOrder = () => {
+  const handleOrder = async () => {
     if (cart.length === 0) {
       showToast('장바구니가 비어 있습니다.', 'error')
       return
     }
     
-    // 재고 확인 및 차감
-    let hasError = false
-    const updatedInventory = { ...inventory }
-    
-    for (const item of cart) {
-      const currentStock = updatedInventory[item.menuId]?.stock || 0
-      if (currentStock < item.quantity) {
-        showToast(`${item.name}의 재고가 부족합니다. (필요: ${item.quantity}개, 현재: ${currentStock}개)`, 'error')
-        hasError = true
-        break
+    try {
+      // API 형식에 맞게 주문 데이터 변환
+      const orderItems = cart.map(item => {
+        // 옵션 ID 찾기 (옵션 이름으로 매칭)
+        const menuItem = menuItems.find(m => m.id === item.menuId)
+        if (!menuItem) {
+          throw new Error(`메뉴를 찾을 수 없습니다: ${item.name}`)
+        }
+        
+        const optionIds = item.options.map(opt => {
+          // 옵션 이름으로 매칭
+          const option = menuItem.options.find(o => o.name === opt.name)
+          if (!option) {
+            console.warn(`옵션을 찾을 수 없습니다: ${opt.name}`)
+            return null
+          }
+          // 옵션 ID는 숫자여야 함
+          return typeof option.id === 'string' ? parseInt(option.id) : option.id
+        }).filter(id => id !== null)
+      
+        return {
+          menu_id: item.menuId,
+          quantity: item.quantity,
+          option_ids: optionIds,
+          item_price: getItemPrice(item)
+        }
+      })
+      
+      const orderData = {
+        items: orderItems,
+        total_price: getTotalPrice()
       }
-      // 재고 차감
-      updatedInventory[item.menuId] = {
-        ...updatedInventory[item.menuId],
-        stock: currentStock - item.quantity
+      
+      // API 호출
+      const newOrder = await api.createOrder(orderData)
+      
+      showToast(`주문이 완료되었습니다! (총 ${getTotalPrice().toLocaleString()}원)`, 'success')
+      setCart([])
+      
+      // 재고 정보 새로고침
+      await loadInitialData()
+      
+      // 관리자 화면이면 주문 목록도 새로고침
+      if (activeTab === 'admin') {
+        await loadAdminData()
       }
+    } catch (error) {
+      showToast(error.message || '주문 생성에 실패했습니다.', 'error')
+      console.error('주문 생성 오류:', error)
     }
-    
-    if (hasError) return
-    
-    // 재고 업데이트
-    setInventory(updatedInventory)
-    
-    const orderId = Date.now()
-    const newOrder = {
-      id: orderId,
-      date: new Date(),
-      items: cart.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-        options: item.options,
-        price: getItemPrice(item)
-      })),
-      totalPrice: getTotalPrice(),
-      status: 'received' // 주문 접수
-    }
-    
-    setOrders(prev => [newOrder, ...prev])
-    showToast(`주문이 완료되었습니다! (총 ${getTotalPrice().toLocaleString()}원)`, 'success')
-    setCart([])
   }
   
   // 재고 증가
-  const increaseInventory = (menuId) => {
-    setInventory(prev => ({
-      ...prev,
-      [menuId]: {
-        ...prev[menuId],
-        stock: prev[menuId].stock + 1
-      }
-    }))
+  const increaseInventory = async (menuId) => {
+    try {
+      await api.updateInventory(menuId, { action: 'increase' })
+      // 재고 정보 새로고침
+      await loadInitialData()
+      showToast('재고가 증가되었습니다.', 'success')
+    } catch (error) {
+      showToast(error.message || '재고 수정에 실패했습니다.', 'error')
+      console.error('재고 증가 오류:', error)
+    }
   }
   
   // 재고 감소
-  const decreaseInventory = (menuId) => {
-    setInventory(prev => {
-      if (prev[menuId].stock <= 0) return prev
-      return {
-        ...prev,
-        [menuId]: {
-          ...prev[menuId],
-          stock: prev[menuId].stock - 1
-        }
+  const decreaseInventory = async (menuId) => {
+    try {
+      const currentStock = inventory[menuId]?.stock || 0
+      if (currentStock <= 0) {
+        showToast('재고가 0 이하입니다.', 'error')
+        return
       }
-    })
+      
+      await api.updateInventory(menuId, { action: 'decrease' })
+      // 재고 정보 새로고침
+      await loadInitialData()
+      showToast('재고가 감소되었습니다.', 'success')
+    } catch (error) {
+      showToast(error.message || '재고 수정에 실패했습니다.', 'error')
+      console.error('재고 감소 오류:', error)
+    }
   }
   
   // 재고 상태 텍스트
@@ -286,12 +284,24 @@ function App() {
   }
   
   // 주문 상태 변경
-  const changeOrderStatus = (orderId, newStatus) => {
-    setOrders(prev => prev.map(order => 
-      order.id === orderId 
-        ? { ...order, status: newStatus }
-        : order
-    ))
+  const changeOrderStatus = async (orderId, newStatus) => {
+    try {
+      // 상태 매핑 (한글 -> 영문)
+      const statusMap = {
+        '제조 시작': 'inProgress',
+        '제조 완료': 'completed'
+      }
+      const apiStatus = statusMap[newStatus] || newStatus
+      
+      await api.updateOrderStatus(orderId, apiStatus)
+      
+      // 주문 목록 새로고침
+      await loadAdminData()
+      showToast('주문 상태가 변경되었습니다.', 'success')
+    } catch (error) {
+      showToast(error.message || '주문 상태 변경에 실패했습니다.', 'error')
+      console.error('주문 상태 변경 오류:', error)
+    }
   }
   
   // 주문 통계 계산
@@ -382,10 +392,14 @@ function App() {
       {/* Main Content */}
       {activeTab === 'order' && (
         <main className="main-content">
-          {/* Menu Section */}
-          <section className="menu-section">
-            <div className="menu-grid">
-              {menuItems.map(menuItem => (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>로딩 중...</div>
+          ) : (
+            <>
+              {/* Menu Section */}
+              <section className="menu-section">
+                <div className="menu-grid">
+                  {menuItems.map(menuItem => (
                 <div key={menuItem.id} className="menu-card">
                   <div 
                     className="menu-image"
@@ -500,6 +514,8 @@ function App() {
               </div>
             )}
           </div>
+          </>
+          )}
         </main>
       )}
 
@@ -596,7 +612,7 @@ function App() {
                         <div className="order-price">
                           {order.totalPrice.toLocaleString()}원
                         </div>
-                      </div>
+      </div>
                       <div className="order-actions">
                         {order.status === 'received' && (
                           <button 
@@ -612,7 +628,7 @@ function App() {
                             onClick={() => changeOrderStatus(order.id, 'completed')}
                           >
                             제조 완료
-                          </button>
+        </button>
                         )}
                         {order.status === 'completed' && (
                           <span className="order-completed">완료</span>
@@ -626,7 +642,7 @@ function App() {
           </section>
         </main>
       )}
-    </div>
+      </div>
   )
 }
 

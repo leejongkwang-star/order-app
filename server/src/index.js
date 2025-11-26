@@ -13,6 +13,12 @@ app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+// 디버깅: 요청 로그
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`)
+  next()
+})
+
 // 데이터베이스 연결 테스트
 testConnection().catch(err => {
   console.error('데이터베이스 연결 실패:', err.message)
@@ -27,10 +33,19 @@ app.get('/', (req, res) => {
   })
 })
 
-// API 라우트 (추후 추가 예정)
-// app.use('/api/menus', require('./routes/menus'))
-// app.use('/api/orders', require('./routes/orders'))
-// app.use('/api/inventory', require('./routes/inventory'))
+// API 라우트
+try {
+  console.log('라우트 등록 시작...')
+  app.use('/api/menus', require('./routes/menus'))
+  console.log('/api/menus 라우트 등록 완료')
+  app.use('/api/orders', require('./routes/orders'))
+  console.log('/api/orders 라우트 등록 완료')
+  app.use('/api/inventory', require('./routes/inventory'))
+  console.log('/api/inventory 라우트 등록 완료')
+} catch (error) {
+  console.error('라우트 등록 오류:', error)
+  process.exit(1)
+}
 
 // 에러 핸들링 미들웨어
 app.use((err, req, res, next) => {
@@ -53,6 +68,15 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`)
   console.log(`http://localhost:${PORT}`)
+  console.log('\n등록된 라우트:')
+  console.log('  GET  /')
+  console.log('  GET  /api/menus')
+  console.log('  GET  /api/orders')
+  console.log('  GET  /api/orders/:orderId')
+  console.log('  POST /api/orders')
+  console.log('  PATCH /api/orders/:orderId/status')
+  console.log('  GET  /api/inventory')
+  console.log('  PATCH /api/inventory/:menuId')
 })
 
 module.exports = app
