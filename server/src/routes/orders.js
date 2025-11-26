@@ -17,6 +17,7 @@ router.get('/', async (req, res) => {
           json_build_object(
             'menu_name', m.name,
             'quantity', oi.quantity,
+            'item_price', oi.item_price,
             'options', COALESCE(
               (
                 SELECT json_agg(opt.name)
@@ -171,10 +172,32 @@ router.post('/', async (req, res) => {
     }
     
     if (!total_price || total_price <= 0) {
+      await client.query('ROLLBACK')
       return res.status(400).json({
         success: false,
         error: '유효한 총 금액이 필요합니다.'
       })
+    }
+    
+    // 각 주문 항목 검증
+    for (const item of items) {
+      // 수량 검증
+      if (!item.quantity || item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({
+          success: false,
+          error: '각 주문 항목의 수량은 1 이상의 정수여야 합니다.'
+        })
+      }
+      
+      // 메뉴 ID 검증
+      if (!item.menu_id || !Number.isInteger(item.menu_id)) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({
+          success: false,
+          error: '유효한 메뉴 ID가 필요합니다.'
+        })
+      }
     }
     
     // 재고 확인 및 차감

@@ -77,7 +77,7 @@ function App() {
           name: item.menu_name,
           quantity: item.quantity,
           options: Array.isArray(item.options) ? item.options.map(opt => ({ name: opt })) : [],
-          price: 0 // API에서 가격 정보가 없으면 0으로 설정
+          price: item.item_price || 0 // API에서 반환하는 item_price 사용
         })),
         totalPrice: order.total_price,
         status: order.status
