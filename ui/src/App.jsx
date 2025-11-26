@@ -105,15 +105,16 @@ function App() {
     6: { name: '콜드 브루', stock: 10 }
   })
   
-  // 디버깅: cart 상태 변경 시 로그 출력
-  useEffect(() => {
-    console.log('Cart updated:', cart)
-  }, [cart])
+  // 토스트 메시지 상태
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' })
   
-  // 주문이 완료되면 주문 목록에 추가
-  useEffect(() => {
-    // 주문하기 화면에서 주문이 완료되면 orders에 추가하는 로직은 handleOrder에서 처리
-  }, [])
+  // 토스트 메시지 표시
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type })
+    setTimeout(() => {
+      setToast({ show: false, message: '', type: 'success' })
+    }, 3000)
+  }
 
   // 옵션 선택 핸들러
   const handleOptionChange = (menuId, optionId, checked) => {
@@ -131,13 +132,16 @@ function App() {
 
   // 장바구니에 추가
   const addToCart = (menuItem) => {
-    console.log('addToCart called:', menuItem.name)
+    // 재고 확인
+    const currentStock = inventory[menuItem.id]?.stock || 0
+    if (currentStock === 0) {
+      showToast(`${menuItem.name}은(는) 품절되었습니다.`, 'error')
+      return
+    }
     
     const selectedOpts = menuItem.options.filter(opt => 
       selectedOptions[`${menuItem.id}-${opt.id}`]
     )
-    
-    console.log('Selected options:', selectedOpts)
     
     const cartItem = {
       id: Date.now(),
@@ -157,24 +161,21 @@ function App() {
 
     if (existingItemIndex >= 0) {
       // 기존 항목 수량 증가
-      console.log('Updating existing item at index:', existingItemIndex)
-      setCart(prev => {
-        const updated = prev.map((item, index) => 
-          index === existingItemIndex 
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-        console.log('Updated cart:', updated)
-        return updated
-      })
+      const newQuantity = cart[existingItemIndex].quantity + 1
+      if (newQuantity > currentStock) {
+        showToast(`재고가 부족합니다. (현재 재고: ${currentStock}개)`, 'error')
+        return
+      }
+      setCart(prev => prev.map((item, index) => 
+        index === existingItemIndex 
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ))
+      showToast('장바구니에 추가되었습니다.', 'success')
     } else {
       // 새 항목 추가
-      console.log('Adding new item to cart')
-      setCart(prev => {
-        const updated = [...prev, cartItem]
-        console.log('Updated cart:', updated)
-        return updated
-      })
+      setCart(prev => [...prev, cartItem])
+      showToast('장바구니에 추가되었습니다.', 'success')
     }
 
     // 해당 메뉴의 선택 옵션 초기화
@@ -198,7 +199,33 @@ function App() {
 
   // 주문하기
   const handleOrder = () => {
-    if (cart.length === 0) return
+    if (cart.length === 0) {
+      showToast('장바구니가 비어 있습니다.', 'error')
+      return
+    }
+    
+    // 재고 확인 및 차감
+    let hasError = false
+    const updatedInventory = { ...inventory }
+    
+    for (const item of cart) {
+      const currentStock = updatedInventory[item.menuId]?.stock || 0
+      if (currentStock < item.quantity) {
+        showToast(`${item.name}의 재고가 부족합니다. (필요: ${item.quantity}개, 현재: ${currentStock}개)`, 'error')
+        hasError = true
+        break
+      }
+      // 재고 차감
+      updatedInventory[item.menuId] = {
+        ...updatedInventory[item.menuId],
+        stock: currentStock - item.quantity
+      }
+    }
+    
+    if (hasError) return
+    
+    // 재고 업데이트
+    setInventory(updatedInventory)
     
     const orderId = Date.now()
     const newOrder = {
@@ -215,7 +242,7 @@ function App() {
     }
     
     setOrders(prev => [newOrder, ...prev])
-    alert(`주문이 완료되었습니다!\n총 금액: ${getTotalPrice().toLocaleString()}원`)
+    showToast(`주문이 완료되었습니다! (총 ${getTotalPrice().toLocaleString()}원)`, 'success')
     setCart([])
   }
   
@@ -286,11 +313,24 @@ function App() {
 
   // 장바구니 수량 증가
   const increaseQuantity = (itemId) => {
-    setCart(prev => prev.map(item => 
-      item.id === itemId 
-        ? { ...item, quantity: item.quantity + 1 }
-        : item
-    ))
+    setCart(prev => {
+      const item = prev.find(i => i.id === itemId)
+      if (!item) return prev
+      
+      const currentStock = inventory[item.menuId]?.stock || 0
+      const newQuantity = item.quantity + 1
+      
+      if (newQuantity > currentStock) {
+        showToast(`재고가 부족합니다. (현재 재고: ${currentStock}개)`, 'error')
+        return prev
+      }
+      
+      return prev.map(i => 
+        i.id === itemId 
+          ? { ...i, quantity: newQuantity }
+          : i
+      )
+    })
   }
 
   // 장바구니 수량 감소
@@ -313,6 +353,13 @@ function App() {
 
   return (
     <div className="app">
+      {/* Toast 메시지 */}
+      {toast.show && (
+        <div className={`toast toast-${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
+      
       {/* Header */}
       <header className="header">
         <div className="brand">COZY</div>
@@ -490,8 +537,8 @@ function App() {
                 const statusColor = getStockStatusColor(item.stock)
                 return (
                   <div key={menuId} className="inventory-card">
-                    <div className="inventory-name">{item.name}</div>
-                    <div className="inventory-stock">
+                    <div className="inventory-info">
+                      <span className="inventory-name">{item.name}</span>
                       <span className="stock-quantity">{item.stock}개</span>
                       <span 
                         className="stock-status" 
