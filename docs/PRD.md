@@ -127,3 +127,458 @@
 - 재고 자동 동기화 주기(웹소켓 vs 폴링) 확정 필요.
 - 주문 상태 단계 수(접수/제조/완료 외 추가 단계 여부).
 - 다중 관리자 동시 접속 시 권한/충돌 처리 정책.
+
+## 6. 백엔드 개발 PRD
+
+### 6.1 데이터 모델
+
+#### 6.1.1 Menus (메뉴)
+메뉴 정보를 저장하는 테이블
+
+**필드:**
+- `id` (Primary Key, Integer, Auto Increment): 메뉴 고유 ID
+- `name` (VARCHAR, NOT NULL): 커피 이름 (예: "에스프레소", "아메리카노")
+- `description` (TEXT): 메뉴 설명
+- `price` (INTEGER, NOT NULL): 기본 가격 (원 단위)
+- `image` (VARCHAR): 이미지 경로 또는 URL
+- `stock` (INTEGER, DEFAULT 0): 재고 수량
+- `created_at` (TIMESTAMP, DEFAULT NOW()): 생성 일시
+- `updated_at` (TIMESTAMP, DEFAULT NOW()): 수정 일시
+
+#### 6.1.2 Options (옵션)
+메뉴 옵션 정보를 저장하는 테이블
+
+**필드:**
+- `id` (Primary Key, Integer, Auto Increment): 옵션 고유 ID
+- `name` (VARCHAR, NOT NULL): 옵션 이름 (예: "아이스", "샷 추가", "시럽 추가")
+- `price` (INTEGER, DEFAULT 0): 옵션 추가 가격 (원 단위)
+- `menu_id` (Foreign Key, INTEGER, NOT NULL): 연결된 메뉴 ID (Menus 테이블 참조)
+- `created_at` (TIMESTAMP, DEFAULT NOW()): 생성 일시
+- `updated_at` (TIMESTAMP, DEFAULT NOW()): 수정 일시
+
+#### 6.1.3 Orders (주문)
+주문 정보를 저장하는 테이블
+
+**필드:**
+- `id` (Primary Key, Integer, Auto Increment): 주문 고유 ID
+- `order_date` (TIMESTAMP, NOT NULL, DEFAULT NOW()): 주문 일시
+- `status` (VARCHAR, NOT NULL, DEFAULT 'received'): 주문 상태 ('received': 주문 접수, 'inProgress': 제조 중, 'completed': 제조 완료)
+- `total_price` (INTEGER, NOT NULL): 총 주문 금액 (원 단위)
+- `created_at` (TIMESTAMP, DEFAULT NOW()): 생성 일시
+- `updated_at` (TIMESTAMP, DEFAULT NOW()): 수정 일시
+
+#### 6.1.4 OrderItems (주문 항목)
+주문에 포함된 개별 메뉴 항목 정보를 저장하는 테이블
+
+**필드:**
+- `id` (Primary Key, Integer, Auto Increment): 주문 항목 고유 ID
+- `order_id` (Foreign Key, INTEGER, NOT NULL): 주문 ID (Orders 테이블 참조)
+- `menu_id` (Foreign Key, INTEGER, NOT NULL): 메뉴 ID (Menus 테이블 참조)
+- `quantity` (INTEGER, NOT NULL, DEFAULT 1): 주문 수량
+- `item_price` (INTEGER, NOT NULL): 해당 항목의 총 가격 (메뉴 가격 + 옵션 가격) * 수량
+- `created_at` (TIMESTAMP, DEFAULT NOW()): 생성 일시
+
+#### 6.1.5 OrderItemOptions (주문 항목 옵션)
+주문 항목에 선택된 옵션 정보를 저장하는 테이블
+
+**필드:**
+- `id` (Primary Key, Integer, Auto Increment): 주문 항목 옵션 고유 ID
+- `order_item_id` (Foreign Key, INTEGER, NOT NULL): 주문 항목 ID (OrderItems 테이블 참조)
+- `option_id` (Foreign Key, INTEGER, NOT NULL): 옵션 ID (Options 테이블 참조)
+- `created_at` (TIMESTAMP, DEFAULT NOW()): 생성 일시
+
+### 6.2 데이터 스키마를 위한 사용자 흐름
+
+#### 6.2.1 메뉴 조회 및 표시
+1. 사용자가 '주문하기' 화면에 접속
+2. 백엔드 API를 통해 Menus 테이블에서 모든 메뉴 정보 조회
+3. 각 메뉴에 연결된 Options 정보도 함께 조회
+4. 프런트엔드에서 메뉴 카드 형태로 표시
+5. 관리자 화면에서는 Menus 테이블의 `stock` 필드 값을 '재고 현황'에 표시
+
+#### 6.2.2 장바구니 관리
+1. 사용자가 메뉴 카드에서 옵션을 선택하고 '담기' 버튼 클릭
+2. 선택된 정보는 프런트엔드 상태(장바구니)에 저장
+3. 장바구니에서 수량 조절 가능
+4. 장바구니 정보는 주문 전까지 프런트엔드에서만 관리
+
+#### 6.2.3 주문 생성
+1. 사용자가 장바구니에서 '주문하기' 버튼 클릭
+2. 주문 정보를 Orders 테이블에 저장:
+   - `order_date`: 현재 시간
+   - `status`: 'received' (주문 접수)
+   - `total_price`: 장바구니 총 금액
+3. 각 주문 항목을 OrderItems 테이블에 저장:
+   - `order_id`: 생성된 주문 ID
+   - `menu_id`: 주문한 메뉴 ID
+   - `quantity`: 주문 수량
+   - `item_price`: (메뉴 가격 + 선택된 옵션 가격 합계) * 수량
+4. 선택된 옵션들을 OrderItemOptions 테이블에 저장
+5. 주문된 메뉴의 재고 수량 차감 (Menus 테이블의 `stock` 필드 업데이트)
+
+#### 6.2.4 주문 현황 관리
+1. 관리자 화면의 '주문 현황'에서 Orders 테이블의 모든 주문 조회
+2. 각 주문의 OrderItems와 OrderItemOptions 정보도 함께 조회
+3. 주문 목록을 시간순으로 정렬하여 표시
+4. 주문 상태 변경:
+   - '주문 접수' → '제조 시작' 버튼 클릭 → `status`를 'inProgress'로 변경
+   - '제조 중' → '제조 완료' 버튼 클릭 → `status`를 'completed'로 변경
+
+### 6.3 API 설계
+
+#### 6.3.1 메뉴 목록 조회
+**엔드포인트:** `GET /api/menus`
+
+**설명:** 주문하기 화면에서 커피 메뉴 목록을 조회
+
+**요청:**
+- Method: GET
+- Headers: 없음
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "에스프레소",
+      "description": "진한 에스프레소 샷, 두꺼운 크레마가 특징",
+      "price": 3000,
+      "image": "/images/coffee-menu-grid.jpg",
+      "imagePosition": "0% 0%",
+      "stock": 10,
+      "options": [
+        {
+          "id": 1,
+          "name": "샷 추가",
+          "price": 1000,
+          "menu_id": 1
+        },
+        {
+          "id": 2,
+          "name": "시럽 추가",
+          "price": 0,
+          "menu_id": 1
+        }
+      ]
+    }
+    // ... 더 많은 메뉴
+  ]
+}
+```
+
+**에러 응답:**
+```json
+{
+  "success": false,
+  "error": "메뉴를 불러오는데 실패했습니다."
+}
+```
+
+#### 6.3.2 주문 생성
+**엔드포인트:** `POST /api/orders`
+
+**설명:** 사용자가 주문하기 버튼을 클릭하면 주문 정보를 저장
+
+**요청:**
+- Method: POST
+- Headers: `Content-Type: application/json`
+- Body:
+```json
+{
+  "items": [
+    {
+      "menu_id": 1,
+      "quantity": 2,
+      "option_ids": [1, 2],
+      "item_price": 8000
+    },
+    {
+      "menu_id": 2,
+      "quantity": 1,
+      "option_ids": [3],
+      "item_price": 4500
+    }
+  ],
+  "total_price": 12500
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "order_date": "2024-11-24T10:30:00Z",
+    "status": "received",
+    "total_price": 12500
+  }
+}
+```
+
+**에러 응답:**
+```json
+{
+  "success": false,
+  "error": "재고가 부족합니다."
+}
+```
+
+**비즈니스 로직:**
+1. 주문 항목의 각 메뉴에 대해 재고 확인
+2. 재고가 부족하면 에러 반환
+3. 재고가 충분하면:
+   - Orders 테이블에 주문 정보 저장
+   - OrderItems 테이블에 주문 항목 저장
+   - OrderItemOptions 테이블에 옵션 정보 저장
+   - Menus 테이블의 재고 수량 차감
+
+#### 6.3.3 주문 조회
+**엔드포인트:** `GET /api/orders/:orderId`
+
+**설명:** 주문 ID를 전달하면 해당 주문의 상세 정보를 조회
+
+**요청:**
+- Method: GET
+- URL Parameters: `orderId` (주문 ID)
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "order_date": "2024-11-24T10:30:00Z",
+    "status": "received",
+    "total_price": 12500,
+    "items": [
+      {
+        "id": 1,
+        "menu_id": 1,
+        "menu_name": "에스프레소",
+        "quantity": 2,
+        "item_price": 8000,
+        "options": [
+          {
+            "id": 1,
+            "name": "샷 추가",
+            "price": 1000
+          },
+          {
+            "id": 2,
+            "name": "시럽 추가",
+            "price": 0
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**에러 응답:**
+```json
+{
+  "success": false,
+  "error": "주문을 찾을 수 없습니다."
+}
+```
+
+#### 6.3.4 주문 목록 조회 (관리자용)
+**엔드포인트:** `GET /api/orders`
+
+**설명:** 관리자 화면에서 모든 주문 목록을 조회
+
+**요청:**
+- Method: GET
+- Query Parameters (선택):
+  - `status`: 주문 상태 필터 ('received', 'inProgress', 'completed')
+  - `limit`: 조회할 주문 개수 (기본값: 50)
+  - `offset`: 페이지네이션 오프셋 (기본값: 0)
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": {
+    "orders": [
+      {
+        "id": 123,
+        "order_date": "2024-11-24T10:30:00Z",
+        "status": "received",
+        "total_price": 12500,
+        "items": [
+          {
+            "menu_name": "에스프레소",
+            "quantity": 2,
+            "options": ["샷 추가", "시럽 추가"]
+          }
+        ]
+      }
+    ],
+    "total": 10,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+#### 6.3.5 주문 상태 변경
+**엔드포인트:** `PATCH /api/orders/:orderId/status`
+
+**설명:** 관리자가 주문 상태를 변경 (주문 접수 → 제조 중 → 제조 완료)
+
+**요청:**
+- Method: PATCH
+- URL Parameters: `orderId` (주문 ID)
+- Headers: `Content-Type: application/json`
+- Body:
+```json
+{
+  "status": "inProgress"
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "status": "inProgress",
+    "updated_at": "2024-11-24T10:35:00Z"
+  }
+}
+```
+
+**에러 응답:**
+```json
+{
+  "success": false,
+  "error": "유효하지 않은 상태 변경입니다."
+}
+```
+
+#### 6.3.6 재고 조회 (관리자용)
+**엔드포인트:** `GET /api/inventory`
+
+**설명:** 관리자 화면에서 모든 메뉴의 재고 정보를 조회
+
+**요청:**
+- Method: GET
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "menu_id": 1,
+      "menu_name": "에스프레소",
+      "stock": 10
+    },
+    {
+      "menu_id": 2,
+      "menu_name": "아메리카노",
+      "stock": 8
+    }
+  ]
+}
+```
+
+#### 6.3.7 재고 수정 (관리자용)
+**엔드포인트:** `PATCH /api/inventory/:menuId`
+
+**설명:** 관리자가 특정 메뉴의 재고 수량을 수정
+
+**요청:**
+- Method: PATCH
+- URL Parameters: `menuId` (메뉴 ID)
+- Headers: `Content-Type: application/json`
+- Body:
+```json
+{
+  "stock": 15
+}
+```
+
+또는 증감 방식:
+```json
+{
+  "action": "increase" // 또는 "decrease"
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "data": {
+    "menu_id": 1,
+    "menu_name": "에스프레소",
+    "stock": 15,
+    "updated_at": "2024-11-24T10:40:00Z"
+  }
+}
+```
+
+**에러 응답:**
+```json
+{
+  "success": false,
+  "error": "재고는 0 이상이어야 합니다."
+}
+```
+
+### 6.4 데이터베이스 관계도
+
+```
+Menus (1) ──< (N) Options
+  │
+  │ (1)
+  │
+  └──< (N) OrderItems ──< (N) OrderItemOptions ──> (1) Options
+        │
+        │ (N)
+        │
+        └──> (1) Orders
+```
+
+### 6.5 기술 요구사항
+
+#### 6.5.1 백엔드 프레임워크
+- Node.js + Express
+- RESTful API 설계 원칙 준수
+- JSON 형식의 요청/응답
+
+#### 6.5.2 데이터베이스
+- PostgreSQL 사용
+- 트랜잭션 처리 (주문 생성 시 재고 차감과 주문 저장을 원자적으로 처리)
+- 외래 키 제약 조건 설정
+- 인덱스 최적화 (주문 조회 시 `order_date`, `status` 필드에 인덱스)
+
+#### 6.5.3 에러 처리
+- 모든 API는 일관된 에러 응답 형식 사용
+- HTTP 상태 코드 적절히 사용 (200: 성공, 400: 잘못된 요청, 404: 리소스 없음, 500: 서버 오류)
+- 데이터베이스 오류는 사용자 친화적인 메시지로 변환
+
+#### 6.5.4 데이터 검증
+- 요청 데이터 유효성 검사 (예: 수량은 양수, 가격은 0 이상)
+- 재고 부족 시 주문 거부
+- 존재하지 않는 메뉴/옵션 ID에 대한 검증
+
+### 6.6 보안 고려사항
+
+- SQL Injection 방지: 파라미터화된 쿼리 사용
+- 입력 데이터 검증 및 sanitization
+- CORS 설정 (프런트엔드 도메인만 허용)
+- Rate Limiting 고려 (과도한 요청 방지)
+
+### 6.7 오픈 이슈
+
+- 주문 히스토리 보관 기간 정책
+- 재고 부족 시 알림 시스템 필요 여부
+- 주문 취소 기능 추가 여부
+- 관리자 인증/권한 관리 필요 여부
