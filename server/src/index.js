@@ -9,7 +9,16 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // 미들웨어
-app.use(cors())
+// CORS 설정
+// 프로덕션에서는 FRONTEND_URL 환경 변수로 특정 도메인만 허용 가능
+// 환경 변수가 없으면 모든 origin 허용 (개발 및 기본 설정)
+const corsOptions = process.env.FRONTEND_URL 
+  ? {
+      origin: process.env.FRONTEND_URL,
+      credentials: true,
+    }
+  : {}  // 모든 origin 허용
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
