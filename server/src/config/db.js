@@ -15,16 +15,24 @@ if (process.env.DATABASE_URL) {
     connectionTimeoutMillis: 2000,
   }
 } else {
-  // 개별 환경 변수를 사용하는 경우 (로컬 개발)
+  // 개별 환경 변수를 사용하는 경우
+  // Render의 External Database URL을 사용하는 경우 SSL이 필요함
+  const isRenderHost = process.env.DB_HOST && (
+    process.env.DB_HOST.includes('render.com') || 
+    process.env.DB_HOST.includes('onrender.com')
+  )
+  
   poolConfig = {
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,
     database: process.env.DB_NAME || 'coffee_order_db',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
+    // Render 데이터베이스는 SSL 필요
+    ssl: isRenderHost ? { rejectUnauthorized: false } : false,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Render 연결은 시간이 더 걸릴 수 있음
   }
 }
 
